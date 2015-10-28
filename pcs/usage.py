@@ -929,6 +929,9 @@ Commands:
         generated from the resource id. If resource-discovery is omitted it
         defaults to 'always'.
 
+    location graph
+        Outputs the location constraints to stdout in dot format.
+
     location show [resources|nodes [node id|resource id]...] [--full]
         List all the current location constraints, if 'resources' is specified
         location constraints are displayed per resource (default), if 'nodes'
@@ -947,6 +950,9 @@ Commands:
     order show [--full]
         List all current ordering constraints (if --full is specified show
         the internal constraint id's as well).
+
+    order graph
+        Outputs the order constraints to stdout in dot format.
 
     order [action] <resource id> then [action] <resource id> [options]
         Add an ordering constraint specifying actions (start, stop, promote,
@@ -970,6 +976,9 @@ Commands:
     colocation show [--full]
         List all current colocation constraints (if --full is specified show
         the internal constraint id's as well).
+
+    colocation graph
+        Outputs the colocation constraints to stdout in dot format.
 
     colocation add [master|slave] <source resource id> with [master|slave]
                    <target resource id> [score] [options] [id=constraint-id]

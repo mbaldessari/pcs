@@ -1,4 +1,5 @@
 import sys
+import graph
 import usage
 import utils
 import resource
@@ -8,6 +9,7 @@ import xml.etree.ElementTree as ET
 from xml.dom.minidom import getDOMImplementation
 from xml.dom.minidom import parseString
 from collections import defaultdict
+
 
 OPTIONS_ACTION = ("start", "promote", "demote", "stop")
 DEFAULT_ACTION = "start"
@@ -33,6 +35,8 @@ def constraint_cmd(argv):
             location_add(argv)
         elif (sub_cmd2 in ["remove","delete"]):
             location_add(argv,True)
+        elif (sub_cmd2 == "graph"):
+            location_graph(argv)
         elif (sub_cmd2 == "show"):
             location_show(argv)
         elif len(argv) >= 2:
@@ -53,6 +57,8 @@ def constraint_cmd(argv):
             order_set(argv)
         elif (sub_cmd2 in ["remove","delete"]):
             order_rm(argv)
+        elif (sub_cmd2 == "graph"):
+            order_graph(argv)
         elif (sub_cmd2 == "show"):
             order_show(argv)
         else:
@@ -69,6 +75,8 @@ def constraint_cmd(argv):
             colocation_rm(argv)
         elif (sub_cmd2 == "set"):
             colocation_set(argv)
+        elif (sub_cmd2 == "graph"):
+            colocation_graph(argv)
         elif (sub_cmd2 == "show"):
             colocation_show(argv)
         else:
@@ -87,6 +95,42 @@ def constraint_cmd(argv):
     else:
         usage.constraint()
         sys.exit(1)
+
+def create_tree(constraints, tag):
+    pass
+
+def colocation_graph(argv):
+    cib_dom = utils.get_cib_dom()
+    (dom,constraintsElement) = getCurrentConstraints()
+    resource_order_sets = []
+    g = graph.Graph()
+
+    for ord_loc in constraintsElement.getElementsByTagName('rsc_colocation'):
+        rsc_id = ord_loc.getAttribute("id")
+        score = ord_loc.getAttribute("score")
+        rsc = ord_loc.getAttribute("rsc")
+        rsc_role = ord_loc.getAttribute("rsc-role")
+        with_rsc = ord_loc.getAttribute("with-rsc")
+        with_rsc_role = ord_loc.getAttribute("with-rsc-role")
+
+        rsc_is_clone = utils.dom_get_clone(cib_dom, rsc)
+        with_rsc_is_clone = utils.dom_get_clone(cib_dom, with_rsc)
+        rsc_attrs = { 'fillcolor': 'lightgray', 'shape': 'box', 'style': 'filled'}
+        with_rsc_attrs = { 'fillcolor': 'lightgray', 'shape': 'box', 'style': 'filled'}
+        # If the node is a clone resource we paint it orange
+        if rsc_is_clone:
+            rsc_attrs['fillcolor'] = 'orange'
+        if with_rsc_is_clone:
+            with_rsc_attrs['fillcolor'] = 'orange'
+
+        edge_attrs = { 'style': 'solid', 'color': 'black'}
+        if score:
+            edge_attrs['label'] = score
+
+        g.add_edge(rsc, with_rsc, edge_attrs, rsc_attrs, with_rsc_attrs)
+
+    g.todot(None, 'colocation')
+
 
 def colocation_show(argv):
     if "--full" in utils.pcs_options:
@@ -353,6 +397,90 @@ def colocation_set(argv):
     set_add_resource_sets(rsc_colocation, resource_sets, cib)
     constraints.appendChild(rsc_colocation)
     utils.replace_cib_configuration(cib)
+
+def order_graph(argv):
+    graph_attr = """
+{
+  rank = sink;
+  node [shape=plaintext]
+  subgraph cluster_01 {
+    rankdir=LR
+    label = "Legend";
+    key [label=<<table border="0" cellpadding="2" cellspacing="0" cellborder="0">
+      <tr><td align="right" port="i1">Mandatory</td></tr>
+      <tr><td align="right" port="i2">Optional</td></tr>
+      <tr><td align="right" port="i3"><font color="lightgray">Non-Clone</font></td></tr>
+      <tr><td align="right" port="i4"><font color="orange">Clone</font></td></tr>
+      <tr><td align="right" port="i5"><font color="blue">Start</font></td></tr>
+      <tr><td align="right" port="i6"><font color="green">Promote</font></td></tr>
+      <tr><td align="right" port="i7"><font color="red">Stop</font></td></tr>
+      </table>>]
+    key2 [label=<<table border="0" cellpadding="2" cellspacing="0" cellborder="0">
+      <tr><td port="i1">&nbsp;</td></tr>
+      <tr><td port="i2">&nbsp;</td></tr>
+      <tr><td port="i3">&nbsp;</td></tr>
+      <tr><td port="i4">&nbsp;</td></tr>
+      <tr><td port="i5">&nbsp;</td></tr>
+      <tr><td port="i6">&nbsp;</td></tr>
+      <tr><td port="i7">&nbsp;</td></tr>
+      </table>>]
+    key:i1:e -> key2:i1:w [style=filled]
+    key:i2:e -> key2:i2:w [style=dotted]
+  }
+}
+"""
+
+    cib_dom = utils.get_cib_dom()
+    (dom,constraintsElement) = getCurrentConstraints()
+    resource_order_sets = []
+    g = graph.Graph(graph_attr)
+
+    for ord_loc in constraintsElement.getElementsByTagName('rsc_order'):
+        first = ord_loc.getAttribute("first")
+        first_action = ord_loc.getAttribute("first-action")
+        then = ord_loc.getAttribute("then")
+        then_action = ord_loc.getAttribute("then-action")
+        kind = ord_loc.getAttribute("kind")
+        rsc_id = ord_loc.getAttribute("id")
+        require_all = ord_loc.getAttribute("require-all")
+
+        first_is_clone = utils.dom_get_clone(cib_dom, first)
+        then_is_clone = utils.dom_get_clone(cib_dom, then)
+        first_attrs = { 'fillcolor': 'lightgray', 'shape': 'box', 'style': 'filled'}
+        then_attrs = { 'fillcolor': 'lightgray', 'shape': 'box', 'style': 'filled'}
+        # If the node is a clone resource we paint it orange
+        if first_is_clone:
+            first_attrs['fillcolor'] = 'orange'
+        if then_is_clone:
+            then_attrs['fillcolor'] = 'orange'
+
+        # If the action is start we paint a blue border
+        if first_action == 'start':
+            first_attrs['color'] = 'blue'
+        # If it is a master/slave resource we paint a green border
+        elif first_action == 'promote':
+            first_attrs['color'] = 'green'
+        # If the action is stop we paint a red border
+        elif first_action == 'stop':
+            first_attrs['color'] = 'red'
+
+        if then_action == 'start':
+            then_attrs['color'] = 'blue'
+        elif then_action == 'promote':
+            then_attrs['color'] = 'green'
+        elif then_action == 'stop':
+            then_attrs['color'] = 'red'
+
+        # if require-all=false we change the shape of the then node to a circle
+        if require_all == 'false':
+            then_attrs['comment'] = 'req-all=false'
+        edge_attrs = { 'style': 'solid', 'color': 'black'}
+        if kind == 'Optional':
+            edge_attrs['style'] = "dotted"
+
+        g.add_edge(first, then, edge_attrs, first_attrs, then_attrs)
+
+    g.todot(None, 'order')
 
 def order_show(argv):
     if "--full" in utils.pcs_options:
@@ -641,7 +769,7 @@ def order_start(argv):
     if argv.pop(0) != "then":
         usage.constraint()
         sys.exit(1)
-    
+
     if len(argv) == 0:
         usage.constraint()
         sys.exit(1)
@@ -786,6 +914,54 @@ def order_find_duplicates(dom, constraint_el):
             and normalized_el == normalize(other_el)
     ]
 
+def location_graph(argv):
+    graph_attr = """
+{
+  rank = sink;
+  node [shape=plaintext]
+  subgraph cluster_01 {
+    rankdir=LR
+    label = "Legend";
+    key [label=<<table border="0" cellpadding="2" cellspacing="0" cellborder="0">
+      <tr><td align="right" port="i1">Has Rules</td></tr>
+      </table>>]
+    key2 [label=<<table border="0" cellpadding="2" cellspacing="0" cellborder="0">
+      <tr><td port="i1">&nbsp;</td></tr>
+      </table>>]
+    key:i1:e -> key2:i1:w [style=dotted]
+  }
+}
+"""
+
+    cib_dom = utils.get_cib_dom()
+    (dom,constraintsElement) = getCurrentConstraints()
+    resource_order_sets = []
+    g = graph.Graph(graph_attr)
+
+    for ord_loc in constraintsElement.getElementsByTagName('rsc_location'):
+        rsc_id = ord_loc.getAttribute("id")
+        score = ord_loc.getAttribute("score")
+        rsc = ord_loc.getAttribute("rsc")
+        node = ord_loc.getAttribute("node")
+
+        rsc_attrs = { 'fillcolor': 'lightgray', 'shape': 'box', 'style': 'filled'}
+        node_attrs = { 'fillcolor': 'lightgray', 'shape': 'box', 'style': 'filled'}
+        has_rules = False
+        for child in ord_loc.childNodes:
+            if child.nodeType == child.ELEMENT_NODE and child.tagName == "rule":
+                has_rules = True
+                break
+
+        edge_attrs = { 'style': 'solid', 'color': 'black'}
+        if score:
+            edge_attrs['label'] = score
+        if has_rules:
+            edge_attrs['style'] = "dotted"
+
+        g.add_edge(rsc, node, edge_attrs, rsc_attrs, node_attrs)
+
+    g.todot(None, 'location')
+
 # Show the currently configured location constraints by node or resource
 def location_show(argv):
     if (len(argv) != 0 and argv[0] == "nodes"):
@@ -918,7 +1094,7 @@ def location_show(argv):
                         print "(resource-discovery="+options[4]+")",
                     if showDetail:
                         print "(id:"+options[0]+")",
-                    print 
+                    print
             miniruleshash={}
             miniruleshash["Resource: " + rsc] = ruleshash["Resource: " + rsc]
             show_location_rules(miniruleshash,showDetail, True)
@@ -980,10 +1156,10 @@ def location_prefer(argv):
                     score = "-" + score
             node = nodeconf_a[0]
         location_add(["location-" +rsc+"-"+node+"-"+score,rsc,node,score])
-        
+
 
 def location_add(argv,rm=False):
-    if len(argv) < 4 and (rm == False or len(argv) < 1): 
+    if len(argv) < 4 and (rm == False or len(argv) < 1):
         usage.constraint()
         sys.exit(1)
 
@@ -1036,6 +1212,7 @@ def location_add(argv,rm=False):
         if (constraint_id == rsc_loc.getAttribute("id")) or \
                 (rsc_loc.getAttribute("rsc") == resource_name and \
                 rsc_loc.getAttribute("node") == node and not rm):
+
             elementsToRemove.append(rsc_loc)
 
     for etr in elementsToRemove:
@@ -1060,7 +1237,7 @@ def location_rule(argv):
     if len(argv) < 3:
         usage.constraint(["location", "rule"])
         sys.exit(1)
-    
+
     res_name = argv.pop(0)
     resource_valid, resource_error, correct_id \
         = utils.validate_constraint_resource(utils.get_cib_dom(), res_name)
@@ -1182,7 +1359,7 @@ def constraint_rm(argv,returnStatus=False, constraintsElement=None, passed_dom=N
         use_cibadmin = True
     else:
         use_cibadmin = False
-        
+
     for co in constraintsElement.childNodes[:]:
         if co.nodeType != xml.dom.Node.ELEMENT_NODE:
             continue
@@ -1388,7 +1565,7 @@ def constraint_rule(argv):
                         found = True
                         break
                     else:
-                        print "Removing Constraint:",loc_con.get("id") 
+                        print "Removing Constraint:",loc_con.get("id")
                         constraints.remove(loc_con)
                         found = True
                         break

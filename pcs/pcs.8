@@ -427,6 +427,9 @@ where duration options and date spec options are: hours, monthdays, weekdays, ye
 location show [resources|nodes [node id|resource id]...] [\fB\-\-full\fR]
 List all the current location constraints, if 'resources' is specified location constraints are displayed per resource (default), if 'nodes' is specified location constraints are displayed per node.  If specific nodes or resources are specified then we only show information about them.  If \fB\-\-full\fR is specified show the internal constraint id's as well.
 .TP
+location graph
+Outputs the location constraints to stdout in dot format.
+.TP
 location add <id> <resource name> <node> <score> [resource-discovery=<option>]
 Add a location constraint with the appropriate id, resource name, node name and score. (For more advanced pacemaker usage)
 .TP
@@ -435,6 +438,9 @@ Remove a location constraint with the appropriate id, resource name, node name a
 .TP
 order show [\fB\-\-full\fR]
 List all current ordering constraints (if \fB\-\-full\fR is specified show the internal constraint id's as well).
+.TP
+order graph
+Outputs the order constraints to stdout in dot format.
 .TP
 order [action] <resource id> then [action] <resource id> [options]
 Add an ordering constraint specifying actions (start, stop, promote, demote) and if no action is specified the default action will be start.  Available options are kind=Optional/Mandatory/Serialize, symmetrical=true/false, require-all=true/false and id=<constraint-id>.
@@ -447,6 +453,9 @@ Remove resource from any ordering constraint
 .TP
 colocation show [\fB\-\-full\fR]
 List all current colocation constraints (if \fB\-\-full\fR is specified show the internal constraint id's as well).
+.TP
+colocation graph
+Outputs the location constraints to stdout in dot format.
 .TP
 colocation add [master|slave] <source resource id> with [master|slave] <target resource id> [score] [options] [id=constraint-id]
 Request <source resource> to run on the same node where pacemaker has determined <target resource> should run.  Positive values of score mean the resources should be run on the same node, negative values mean the resources should not be run on the same node.  Specifying 'INFINITY' (or '\-INFINITY') for the score forces <source resource> to run (or not run) with <target resource> (score defaults to "INFINITY").  A role can be master or slave (if no role is specified, it defaults to 'started').
