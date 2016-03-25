@@ -435,6 +435,7 @@ def order_graph(argv):
     resource_order_sets = []
     g = graph.Graph(graph_attr)
 
+    seen_vertexes = {}
     for ord_loc in constraintsElement.getElementsByTagName('rsc_order'):
         first = ord_loc.getAttribute("first")
         first_action = ord_loc.getAttribute("first-action")
@@ -478,7 +479,23 @@ def order_graph(argv):
         if kind == 'Optional':
             edge_attrs['style'] = "dotted"
 
+        if first not in seen_vertexes:
+            seen_vertexes[first] = True
+        if then not in seen_vertexes:
+            seen_vertexes[then] = True
         g.add_edge(first, then, edge_attrs, first_attrs, then_attrs)
+
+    root = utils.get_cib_etree()
+    resources = root.find(".//resources")
+    attrs = { 'color': 'red', 'fillcolor': 'lightgray', 'shape': 'box', 'style': 'filled'}
+    for child in resources:
+        if "class" not in child.attrib:
+            continue
+        if child.attrib["class"] == "stonith":
+            continue
+
+        id = child.attrib["id"]
+        g.add_vertex(id, attrs)
 
     g.todot(None, 'order')
 

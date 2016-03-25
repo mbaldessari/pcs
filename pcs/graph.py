@@ -77,6 +77,8 @@ class Graph(object):
 
     def __dict_to_dot(self, d):
         s = ""
+        if not d:
+            return ""
         for i in d:
             s = s + "%s=\"%s\", " % (i, d[i])
         s = s.rstrip(', ')
