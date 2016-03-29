@@ -414,6 +414,7 @@ def order_graph(argv):
       <tr><td align="right" port="i5"><font color="blue">Start</font></td></tr>
       <tr><td align="right" port="i6"><font color="green">Promote</font></td></tr>
       <tr><td align="right" port="i7"><font color="red">Stop</font></td></tr>
+      <tr><td align="right" port="i7"><font color="yellow">Single resource</font></td></tr>
       </table>>]
     key2 [label=<<table border="0" cellpadding="2" cellspacing="0" cellborder="0">
       <tr><td port="i1">&nbsp;</td></tr>
@@ -487,11 +488,9 @@ def order_graph(argv):
 
     root = utils.get_cib_etree()
     resources = root.find(".//resources")
-    attrs = { 'color': 'red', 'fillcolor': 'lightgray', 'shape': 'box', 'style': 'filled'}
+    attrs = { 'color': 'yellow', 'fillcolor': 'lightgray', 'shape': 'box', 'style': 'filled'}
     for child in resources:
-        if "class" not in child.attrib:
-            continue
-        if child.attrib["class"] == "stonith":
+        if child.tag not in ["clone", "master", "primitive"]:
             continue
 
         id = child.attrib["id"]
